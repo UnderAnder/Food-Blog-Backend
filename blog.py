@@ -31,10 +31,18 @@ class DB:
                     'serve_id INTEGER PRIMARY KEY,'
                     'recipe_id INTEGER NOT NULL,'
                     'meal_id INTEGER NOT NULL,'
-                    'FOREIGN KEY (recipe_id)'
-                    'REFERENCES recipes (recipe_id)'
-                    'FOREIGN KEY (meal_id)'
-                    'REFERENCES meals (meal_id)' 
+                    'FOREIGN KEY (recipe_id) REFERENCES recipes (recipe_id),'
+                    'FOREIGN KEY (meal_id) REFERENCES meals (meal_id)'
+                    ');')
+        cur.execute('CREATE TABLE IF NOT EXISTS quantity('
+                    'quantity_id INTEGER PRIMARY KEY,'
+                    'measure_id INTEGER NOT NULL,'
+                    'ingredient_id INTEGER NOT NULL,'
+                    'recipe_id INTEGER NOT NULL,'
+                    'quantity INTEGER NOT NULL,'
+                    'FOREIGN KEY (measure_id) REFERENCES measures (measure_id),'
+                    'FOREIGN KEY (ingredient_id) REFERENCES ingredients (ingredient_id),'
+                    'FOREIGN KEY (recipe_id) REFERENCES recipes (recipe_id)'
                     ');')
         self.conn.commit()
 
@@ -51,9 +59,6 @@ class DB:
         self.conn.commit()
         return result
 
-    def close(self):
-        self.conn.close()
-
     def print_meals(self):
         cur = self.conn.cursor()
         cur.execute('SELECT * FROM meals;')
@@ -62,12 +67,54 @@ class DB:
             print(f'{meal[0]}) {meal[1]}', end='  ')
         print()
 
-    def serve_time(self, recipe_id: int):
+    def mealtime(self, recipe_id: int):
         cur = self.conn.cursor()
-        meals_ids = map(int, input('When the dish can be served: ').split())
+        meals_ids = map(int, input('Enter proposed meals separated by a space: ').split())
         for i in meals_ids:
             cur.execute(f'INSERT INTO serve(recipe_id, meal_id) VALUES (?, ?);', (recipe_id, i))
         self.conn.commit()
+
+    def ingredients_quantity(self, recipe_id: int):
+        cur = self.conn.cursor()
+        while True:
+            user_input = input('Input quantity of ingredient <press enter to stop> ')
+            if not user_input:
+                return False
+            if len(user_input.split()) == 3:
+                quantity, measure, ingredient = user_input.split()
+            else:
+                quantity, ingredient = user_input.split()
+                measure = "" #cur.execute('SELECT (measure_id) FROM measures WHERE measure_name = "";').fetchone()
+
+            if self.find_in_table(measure, 'measure'):
+                measure_id = self.find_in_table(measure, 'measure')
+            else:
+                print('The measure is not conclusive!')
+                continue
+            if self.find_in_table(ingredient, 'ingredient'):
+                ingredient_id = self.find_in_table(ingredient, 'ingredient')
+            else:
+                print('The ingredient is not conclusive!')
+                continue
+
+            cur.execute('INSERT INTO quantity(measure_id, ingredient_id, recipe_id, quantity) '
+                        'VALUES (?, ?, ?, ?);', (measure_id, ingredient_id, recipe_id, quantity))
+            self.conn.commit()
+
+    def find_in_table(self, q, field):
+        cur = self.conn.cursor()
+        if q == '' and field == 'measure':
+            result = cur.execute('SELECT (measure_id) FROM measures WHERE measure_name = "";').fetchall()
+        else:
+            result = cur.execute(f"SELECT {field}_id FROM {field}s WHERE {field}_name LIKE '%'||?||'%';", (q,)).fetchall()
+        print(q, result)
+        if len(result) == 1:
+            return result[0][0]
+        else:
+            return False
+
+    def close(self):
+        self.conn.close()
 
 
 def main():
@@ -86,7 +133,8 @@ def main():
         recipe_description = input('Recipe description: ')
         recipe_id = db.add_recipe((recipe_name, recipe_description))
         db.print_meals()
-        db.serve_time(recipe_id)
+        db.mealtime(recipe_id)
+        db.ingredients_quantity(recipe_id)
 
 
 if __name__ == '__main__':
