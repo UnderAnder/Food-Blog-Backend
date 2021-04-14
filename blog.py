@@ -71,50 +71,43 @@ class DB:
         cur = self.conn.cursor()
         meals_ids = map(int, input('Enter proposed meals separated by a space: ').split())
         for i in meals_ids:
-            cur.execute(f'INSERT INTO serve(recipe_id, meal_id) VALUES (?, ?);', (recipe_id, i))
+            cur.execute('INSERT INTO serve(recipe_id, meal_id) VALUES (?, ?);', (recipe_id, i))
         self.conn.commit()
 
     def ingredients_quantity(self, recipe_id: int):
         cur = self.conn.cursor()
-        while True:
-            user_input = input('Input quantity of ingredient <press enter to stop> ')
-            if not user_input:
-                return False
-            if len(user_input.split()) == 3:
-                quantity, measure, ingredient = user_input.split()
+        while user_input := input('Input quantity of ingredient <press enter to stop> ').split():
+            if len(user_input) == 3:
+                quantity, measure, ingredient = user_input
+            elif len(user_input) == 2:
+                quantity, ingredient = user_input
+                measure = ""
             else:
-                quantity, ingredient = user_input.split()
-                measure = "" #cur.execute('SELECT (measure_id) FROM measures WHERE measure_name = "";').fetchone()
+                print('Wrong lenght of ingredients!')
+                continue
 
-            if self.find_in_table(measure, 'measure'):
-                measure_id = self.find_in_table(measure, 'measure')
+            if x := self.get_from_table(measure, 'measure'):
+                measure_id = x
             else:
                 print('The measure is not conclusive!')
                 continue
-            if self.find_in_table(ingredient, 'ingredient'):
-                ingredient_id = self.find_in_table(ingredient, 'ingredient')
+            if x := self.get_from_table(ingredient, 'ingredient'):
+                ingredient_id = x
             else:
-                print('The ingredient is not conclusive!')
+                print('Wrong lenght!')
                 continue
 
             cur.execute('INSERT INTO quantity(measure_id, ingredient_id, recipe_id, quantity) '
-                        'VALUES (?, ?, ?, ?);', (measure_id, ingredient_id, recipe_id, quantity))
+                        'VALUES (?, ?, ?, ?);', (measure_id, ingredient_id, recipe_id, int(quantity)))
             self.conn.commit()
 
-    def find_in_table(self, q, field):
+    def get_from_table(self, q: str, field: str):
         cur = self.conn.cursor()
         if q == '' and field == 'measure':
-            result = cur.execute('SELECT (measure_id) FROM measures WHERE measure_name = "";').fetchall()
+            res = cur.execute('SELECT (measure_id) FROM measures WHERE measure_name = "";').fetchall()
         else:
-            result = cur.execute(f"SELECT {field}_id FROM {field}s WHERE {field}_name LIKE '%'||?||'%';", (q,)).fetchall()
-        print(q, result)
-        if len(result) == 1:
-            return result[0][0]
-        else:
-            return False
-
-    def close(self):
-        self.conn.close()
+            res = cur.execute(f"SELECT {field}_id FROM {field}s WHERE {field}_name LIKE '%'||?||'%';", (q,)).fetchall()
+        return res[0][0] if len(res) == 1 else False
 
 
 def main():
@@ -125,16 +118,13 @@ def main():
             "measures": ("ml", "g", "l", "cup", "tbsp", "tsp", "dsp", "")}
     db.populate_tables(data)
     print('Pass the empty recipe name to exit.')
-    while True:
-        recipe_name = input('Recipe name: ')
-        if not recipe_name:
-            db.close()
-            exit()
+    while recipe_name := input('Recipe name: '):
         recipe_description = input('Recipe description: ')
         recipe_id = db.add_recipe((recipe_name, recipe_description))
         db.print_meals()
         db.mealtime(recipe_id)
         db.ingredients_quantity(recipe_id)
+    db.conn.close()
 
 
 if __name__ == '__main__':
