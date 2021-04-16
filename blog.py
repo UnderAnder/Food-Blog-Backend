@@ -83,7 +83,7 @@ class DB:
                 quantity, ingredient = user_input
                 measure = ""
             else:
-                print('Wrong lenght of ingredients!')
+                print('Wrong length of ingredients!')
                 continue
 
             if x := self.get_from_table(measure, 'measure'):
@@ -94,7 +94,7 @@ class DB:
             if x := self.get_from_table(ingredient, 'ingredient'):
                 ingredient_id = x
             else:
-                print('Wrong lenght!')
+                print('The ingredient is not conclusive!')
                 continue
             cur.execute('INSERT INTO quantity(measure_id, ingredient_id, recipe_id, quantity) '
                         'VALUES (?, ?, ?, ?);', (measure_id, ingredient_id, recipe_id, int(quantity)))
